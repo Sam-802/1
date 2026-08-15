@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>番茄钟</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍅</text></svg>">
+<style>
+  :root {
+    --bg: #3C3530;      /* 深棕背景 */
+    --card: #4A413B;    /* 卡片(略浅棕) */
+    --text: #C5C6B6;    /* 浅灰绿文字 */
+    --muted: #9B9C8D;   /* 弱化文字 */
+    --focus: #F16B6F;   /* 专注:珊瑚红 */
+    --short: #AACD6E;   /* 短休息:草绿 */
+    --long: #C5C6B6;    /* 长休息:灰绿 */
+    --accent: var(--focus);
+    --ring-track: #564F49;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    background: var(--bg);
+    background-image: radial-gradient(1200px 600px at 50% -10%, rgba(241, 107, 111, 0.18), transparent 60%);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .app {
+    width: 100%;
+    max-width: 420px;
+    text-align: center;
+  }
+
+  h1 {
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    margin-bottom: 24px;
+    color: var(--muted);
+  }
+  h1 span { color: var(--accent); transition: color .4s; }
+
+  /* 模式切换 */
+  .tabs {
+    display: flex;
+    gap: 8px;
+    background: var(--card);
+    padding: 6px;
+    border-radius: 14px;
+    margin-bottom: 28px;
+  }
+  .tab {
+    flex: 1;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 500;
+    padding: 10px 0;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all .25s;
+  }
+  .tab.active {
+    background: var(--accent);
+    color: #3C3530;
+  }
+
+  /* 计时器圆环 */
+  .timer-wrap {
+    position: relative;
+    width: 300px;
+    height: 300px;
+    margin: 0 auto 28px;
+  }
+  svg { transform: rotate(-90deg); }
+  .ring-track { stroke: var(--ring-track); }
+  .ring {
+    stroke: var(--accent);
+    stroke-linecap: round;
+    transition: stroke .4s, stroke-dashoffset .4s linear;
+  }
+  .time {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .time .clock {
+    font-size: 64px;
+    font-weight: 200;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 2px;
+  }
+  .time .mode-label {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 6px;
+    letter-spacing: 1px;
+  }
+
+  /* 控制按钮 */
+  .controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    margin-bottom: 26px;
+  }
+  .btn {
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    transition: transform .12s, opacity .2s, background .2s;
+  }
+  .btn:active { transform: scale(0.96); }
+  .btn-primary {
+    background: var(--accent);
+    color: #3C3530;
+    font-size: 18px;
+    font-weight: 600;
+    padding: 14px 44px;
+    border-radius: 40px;
+    letter-spacing: 2px;
+    transition: background .4s;
+  }
+  .btn-icon {
+    background: var(--card);
+    color: var(--muted);
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    font-size: 18px;
+  }
+  .btn-icon:hover { color: var(--text); }
+
+  /* 完成进度点 */
+  .cycle {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-bottom: 22px;
+  }
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--ring-track);
+    transition: background .3s;
+  }
+  .dot.done { background: var(--accent); }
+
+  /* 底部开关 */
+  .options {
+    display: flex;
+    justify-content: center;
+    gap: 22px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .options label { display: flex; align-items: center; gap: 7px; cursor: pointer; }
+  input[type="checkbox"] {
+    width: 15px; height: 15px;
+    accent-color: var(--accent);
+    cursor: pointer;
+  }
+
+  /* 设置弹层 */
+  .settings-panel {
+    display: none;
+    background: var(--card);
+    border-radius: 16px;
+    padding: 20px;
+    margin-top: 20px;
+    text-align: left;
+  }
+  .settings-panel.open { display: block; }
+  .settings-panel h2 { font-size: 15px; margin-bottom: 14px; color: var(--text); }
+  .field {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .field input {
+    width: 72px;
+    background: var(--bg);
+    border: 1px solid var(--ring-track);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 7px 10px;
+    font-size: 14px;
+    text-align: center;
+    font-family: inherit;
+  }
+  .field input:focus { outline: none; border-color: var(--accent); }
+  .save {
+    width: 100%;
+    margin-top: 6px;
+    background: var(--accent);
+    color: #3C3530;
+    border: none;
+    border-radius: 10px;
+    padding: 11px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  @media (max-width: 360px) {
+    .timer-wrap { width: 260px; height: 260px; }
+    .time .clock { font-size: 52px; }
+  }
+</style>
+</head>
+<body>
+  <div class="app">
+    <h1><span id="titleEmoji">🍅</span> 番茄钟</h1>
+
+    <div class="tabs">
+      <button class="tab active" data-mode="focus">专注</button>
+      <button class="tab" data-mode="short">短休息</button>
+      <button class="tab" data-mode="long">长休息</button>
+    </div>
+
+    <div class="timer-wrap">
+      <svg width="300" height="300" viewBox="0 0 300 300">
+        <circle class="ring-track" cx="150" cy="150" r="132" fill="none" stroke-width="10"/>
+        <circle class="ring" cx="150" cy="150" r="132" fill="none" stroke-width="10"
+                stroke-dasharray="829.38" stroke-dashoffset="0"/>
+      </svg>
+      <div class="time">
+        <div class="clock" id="clock">25:00</div>
+        <div class="mode-label" id="modeLabel">专注</div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button class="btn btn-icon" id="resetBtn" title="重置">⟲</button>
+      <button class="btn btn-primary" id="startBtn">开始</button>
+      <button class="btn btn-icon" id="settingsBtn" title="设置">⚙</button>
+    </div>
+
+    <div class="cycle" id="cycleDots"></div>
+
+    <div class="options">
+      <label><input type="checkbox" id="autoStart" checked> 自动开始下一轮</label>
+      <label><input type="checkbox" id="soundOn" checked> 提示音</label>
+    </div>
+
+    <div class="settings-panel" id="settingsPanel">
+      <h2>时长设置(分钟)</h2>
+      <div class="field">专注 <input type="number" id="focusMin" min="1" max="120" value="25"></div>
+      <div class="field">短休息 <input type="number" id="shortMin" min="1" max="60" value="5"></div>
+      <div class="field">长休息 <input type="number" id="longMin" min="1" max="60" value="15"></div>
+      <button class="save" id="saveBtn">保存</button>
+    </div>
+  </div>
+
+<script>
+(function () {
+  "use strict";
+
+  // —— 状态 ——
+  const MODES = {
+    focus: { name: "专注", emoji: "🍅" },
+    short: { name: "短休息", emoji: "☕" },
+    long:  { name: "长休息", emoji: "🌴" },
+  };
+  const CYCLE_LENGTH = 4;              // 每 4 个专注后进入长休息
+  const RING_C = 2 * Math.PI * 132;    // 圆环周长
+
+  let durations = { focus: 25 * 60, short: 5 * 60, long: 15 * 60 };
+  let mode = "focus";
+  let timeLeft = durations.focus;
+  let running = false;
+  let timer = null;
+  let completed = 0;                   // 本轮已完成的专注数
+
+  // —— DOM ——
+  const $ = (id) => document.getElementById(id);
+  const clockEl = $("clock"), modeLabel = $("modeLabel"), titleEmoji = $("titleEmoji");
+  const ringEl = document.querySelector(".ring");
+  const startBtn = $("startBtn"), resetBtn = $("resetBtn");
+  const autoStartEl = $("autoStart"), soundEl = $("soundOn");
+
+  ringEl.style.strokeDasharray = RING_C;
+
+  // —— 声音(Web Audio,无需外部文件)——
+  let audioCtx = null;
+  function chime() {
+    if (!soundEl.checked) return;
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      const now = audioCtx.currentTime;
+      [880, 660, 990].forEach((freq, i) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = "sine";
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.0001, now + i * 0.22);
+        gain.gain.exponentialRampToValueAtTime(0.3, now + i * 0.22 + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.22 + 0.2);
+        osc.connect(gain).connect(audioCtx.destination);
+        osc.start(now + i * 0.22);
+        osc.stop(now + i * 0.22 + 0.22);
+      });
+    } catch (e) { /* 忽略音频错误 */ }
+  }
+
+  function notify(title, body) {
+    try {
+      if (Notification.permission === "granted") new Notification(title, { body });
+    } catch (e) { /* 忽略 */ }
+  }
+
+  // —— 渲染 ——
+  function fmt(s) {
+    const m = Math.floor(s / 60), r = s % 60;
+    return String(m).padStart(2, "0") + ":" + String(r).padStart(2, "0");
+  }
+
+  function render() {
+    clockEl.textContent = fmt(timeLeft);
+    modeLabel.textContent = MODES[mode].name;
+    titleEmoji.textContent = MODES[mode].emoji;
+
+    // 圆环:剩余时间越多越满,随剩余减少而耗尽
+    const frac = timeLeft / durations[mode];
+    ringEl.style.strokeDashoffset = RING_C * (1 - frac);
+
+    // 主题色
+    const color = { focus: "#F16B6F", short: "#AACD6E", long: "#C5C6B6" }[mode];
+    document.documentElement.style.setProperty("--accent", color);
+
+    // 标签高亮
+    document.querySelectorAll(".tab").forEach((t) =>
+      t.classList.toggle("active", t.dataset.mode === mode));
+
+    // 进度点
+    const dots = $("cycleDots");
+    dots.innerHTML = "";
+    for (let i = 0; i < CYCLE_LENGTH; i++) {
+      const d = document.createElement("span");
+      d.className = "dot" + (i < completed % CYCLE_LENGTH ? " done" : "");
+      dots.appendChild(d);
+    }
+
+    document.title = `${clockEl.textContent} · ${MODES[mode].name} — 番茄钟`;
+  }
+
+  // —— 计时逻辑 ——
+  function tick() {
+    timeLeft--;
+    if (timeLeft <= 0) { onComplete(); return; }
+    render();
+  }
+
+  function start() {
+    if (running) return;
+    running = true;
+    startBtn.textContent = "暂停";
+    timer = setInterval(tick, 1000);
+    requestNotification();
+  }
+
+  function pause() {
+    running = false;
+    startBtn.textContent = "开始";
+    clearInterval(timer);
+  }
+
+  function toggle() { running ? pause() : start(); }
+
+  function reset() {
+    pause();
+    timeLeft = durations[mode];
+    render();
+  }
+
+  function switchMode(next) {
+    mode = next;
+    pause();
+    timeLeft = durations[mode];
+    render();
+  }
+
+  function onComplete() {
+    clearInterval(timer);
+    running = false;
+    chime();
+    notify("番茄钟", `${MODES[mode].name}结束!`);
+
+    let next;
+    if (mode === "focus") {
+      completed++;
+      next = (completed % CYCLE_LENGTH === 0) ? "long" : "short";
+    } else {
+      next = "focus";
+    }
+    switchMode(next);
+    if (autoStartEl.checked) start();
+  }
+
+  function requestNotification() {
+    try {
+      if ("Notification" in window && Notification.permission === "default") {
+        Notification.requestPermission();
+      }
+    } catch (e) { /* 忽略 */ }
+  }
+
+  // —— 事件绑定 ——
+  startBtn.addEventListener("click", toggle);
+  resetBtn.addEventListener("click", reset);
+  $("settingsBtn").addEventListener("click", () =>
+    $("settingsPanel").classList.toggle("open"));
+
+  document.querySelectorAll(".tab").forEach((t) =>
+    t.addEventListener("click", () => switchMode(t.dataset.mode)));
+
+  $("saveBtn").addEventListener("click", () => {
+    const read = (id) => Math.max(1, parseInt($(id).value, 10) || 1) * 60;
+    durations = { focus: read("focusMin"), short: read("shortMin"), long: read("longMin") };
+    reset();
+    $("settingsPanel").classList.remove("open");
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.code === "Space" && e.target === document.body) {
+      e.preventDefault();
+      toggle();
+    }
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

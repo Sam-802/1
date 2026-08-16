@@ -268,7 +268,7 @@
   }
   .dot.done { background: var(--accent); }
 
-  /* 今日熬成 */
+  /* 今日专注 */
   .stat {
     margin-bottom: 20px;
     font-size: 14px;
@@ -402,7 +402,7 @@
     </div>
 
     <div class="cycle" id="cycleDots"></div>
-    <div class="stat">今日熬成 <strong id="statCount">0</strong> 次</div>
+    <div class="stat">今日专注 <strong id="statCount">0</strong> 次</div>
 
     <div class="options">
       <label><input type="checkbox" id="autoStart" checked> 自动开始下一轮</label>
@@ -445,7 +445,7 @@
   let timer = null;
   let completed = 0;                       // 本轮已完成的沉浸次数
 
-  // —— 今日熬成(当日沉浸完成次数)——
+  // —— 今日专注(当日沉浸完成次数)——
   function todayStamp() {
     const d = new Date();
     const p = (n) => String(n).padStart(2, "0");
